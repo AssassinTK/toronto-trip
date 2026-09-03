@@ -267,7 +267,11 @@ function setFlight(on) {
   ['flights-casing', 'flights', 'flights-back'].forEach(id => map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none'));
   flightMarkers.forEach(m => on ? m.addTo(map) : m.remove());
   labels.forEach(l => { if (l) l.getElement().style.display = on ? 'none' : ''; });
-  if (on) { map.fitBounds([[100, 8], [285, 62]], { padding: NARROW ? 30 : 90, pitch: 0, bearing: 0, duration: 2200 }); /* 東經 100 → 西經 75，用 285 表示才不會跨換日線斷線 */ history.replaceState(null, '', '#view=flight'); }
+  if (on) {                                          // 依整條航線的座標取景（大圓會繞北極圈上空，經度已連續化所以不會跨換日線斷開）
+    const b = new maplibregl.LngLatBounds(); map.getSource('flights')._data.features.forEach(f => f.geometry.coordinates.forEach(c => b.extend(c)));
+    map.fitBounds(b, { padding: NARROW ? { top: 60, bottom: 40, left: 20, right: 20 } : { top: 70, bottom: 60, left: 260, right: 360 }, pitch: 0, bearing: 0, duration: 2200 });
+    history.replaceState(null, '', '#view=flight');
+  }
   else if (SPOTS[cur]) show(cur);
 }
 $('flightBtn').onclick = () => setFlight(!flightOn); $('fclose').onclick = () => setFlight(false);
