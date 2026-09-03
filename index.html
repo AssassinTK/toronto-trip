@@ -41,6 +41,14 @@
   .card .story{margin-top:12px;padding-top:11px;border-top:1px solid var(--line);font-size:12.5px;line-height:1.65;color:#3d4451}
   .card .acts{display:flex;gap:6px;margin-top:12px}
   .card .tog{display:none}
+  #fcard .leg{display:grid;grid-template-columns:52px 1fr;gap:4px 10px;font-size:12.5px;padding:8px 0;border-top:1px solid var(--line)}
+  #fcard .leg b{font-variant-numeric:tabular-nums}
+  #fcard .leg small{color:var(--muted);display:block}
+  #fcard .leg .k{color:var(--muted);font-size:11px;letter-spacing:.06em}
+  .flightlabel{background:#1d2129;color:#fff;border-radius:8px;padding:4px 9px;font-size:12px;white-space:nowrap;box-shadow:0 3px 12px rgba(0,0,0,.25)}
+  .flightlabel small{opacity:.7;margin-left:6px}
+  body.flight .card:not(#fcard),body.flight .tl,body.flight .feed{display:none}
+  body.flight #fcard{display:block}
   .tl{position:absolute;left:16px;right:16px;bottom:16px;background:var(--panel);backdrop-filter:blur(12px);border:1px solid var(--line);
     border-radius:14px;padding:12px 14px;box-shadow:0 6px 30px rgba(0,0,0,.08)}
   .days{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;align-items:center}
@@ -113,6 +121,14 @@
     <button class="btn on" data-base="3d">3D 建築</button>
     <button class="btn" data-base="osm">街道</button>
     <button class="btn" data-base="sat">衛星</button>
+    <button class="btn" id="flightBtn" title="台北 ⇄ 多倫多航線">✈ 航程</button>
+  </div>
+  <div class="card" id="fcard" hidden>
+    <span class="num" style="background:#1d2129">✈ 國泰 F9R9MP · 2 人</span>
+    <h2>台北 ⇄ 多倫多</h2><div class="en">TPE → HKG → YYZ · 經香港轉機</div>
+    <div id="flegs"></div>
+    <div class="story">行李：每人託運 1 件 23kg、手提 7kg。座位起飛前 48 小時在國泰 app 線上報到時選。11/1 凌晨加拿大切冬令時間。</div>
+    <div class="acts"><button class="btn" id="fclose">回到行程</button></div>
   </div>
   <div class="feed closed" id="feed"><div class="h" id="feedh">最近變更 <span id="feedn">—</span></div><ul id="feedl"></ul></div>
   <div class="card" id="card">
@@ -218,6 +234,41 @@ map.on('load', () => {
 });
 map.on('click', e => { if (pickMode) { pickMode = false; $('f_lat').value = e.lngLat.lat.toFixed(5); $('f_lng').value = e.lngLat.lng.toFixed(5); $('modal').classList.add('show'); toast('已設定座標'); } });
 document.querySelectorAll('[data-base]').forEach(b => b.onclick = () => setBase(b.dataset.base));
+
+// ── ✈ 航程視圖：Gmail 機票（國泰 F9R9MP）的大圓航線 TPE → HKG → YYZ 與回程 ────────
+const AIRPORTS = { TPE: { name: '台北桃園 T1', lng: 121.2330, lat: 25.0797 }, HKG: { name: '香港 T1', lng: 113.9185, lat: 22.3080 }, YYZ: { name: '多倫多皮爾遜 T3', lng: -79.6248, lat: 43.6777 } };
+function greatCircle(a, b, n) {                       // 球面插值；經度連續化（避免跨換日線斷線）
+  const r = Math.PI / 180, la1 = a.lat * r, lo1 = a.lng * r, la2 = b.lat * r, lo2 = b.lng * r;
+  const d = 2 * Math.asin(Math.sqrt(Math.sin((la2 - la1) / 2) ** 2 + Math.cos(la1) * Math.cos(la2) * Math.sin((lo2 - lo1) / 2) ** 2));
+  const pts = []; let prev = null;
+  for (let i = 0; i <= n; i++) { const f = i / n, A = Math.sin((1 - f) * d) / Math.sin(d), B = Math.sin(f * d) / Math.sin(d);
+    const x = A * Math.cos(la1) * Math.cos(lo1) + B * Math.cos(la2) * Math.cos(lo2), y = A * Math.cos(la1) * Math.sin(lo1) + B * Math.cos(la2) * Math.sin(lo2), z = A * Math.sin(la1) + B * Math.sin(la2);
+    let lng = Math.atan2(y, x) / r, lat = Math.atan2(z, Math.hypot(x, y)) / r;
+    if (prev != null) { while (lng - prev > 180) lng -= 360; while (lng - prev < -180) lng += 360; } prev = lng; pts.push([lng, lat]); }
+  return pts;
+}
+let flightMarkers = [], flightOn = false;
+function buildFlight() {
+  const fl = DATA.flights || []; if (!fl.length || map.getSource('flights')) return;
+  const feats = fl.map((f, i) => ({ type: 'Feature', properties: { leg: f.leg, no: f.no, out: f.leg === '去程' ? 1 : 0 }, geometry: { type: 'LineString', coordinates: greatCircle(AIRPORTS[f.from], AIRPORTS[f.to], 120) } }));
+  map.addSource('flights', { type: 'geojson', data: { type: 'FeatureCollection', features: feats } });
+  map.addLayer({ id: 'flights-casing', type: 'line', source: 'flights', layout: { visibility: 'none', 'line-cap': 'round' }, paint: { 'line-color': '#fff', 'line-width': 6, 'line-opacity': .9 } });
+  map.addLayer({ id: 'flights', type: 'line', source: 'flights', layout: { visibility: 'none', 'line-cap': 'round' }, paint: { 'line-color': ['case', ['==', ['get', 'out'], 1], '#e0452f', '#2a7de1'], 'line-width': 3, 'line-dasharray': ['case', ['==', ['get', 'out'], 1], ['literal', [1, 0]], ['literal', [2, 2]]] } });
+  Object.keys(AIRPORTS).forEach(k => { const a = AIRPORTS[k]; const el = document.createElement('div'); el.className = 'flightlabel';
+    const times = fl.filter(f => f.from === k || f.to === k).map(f => (f.from === k ? '出 ' + f.dep : '抵 ' + f.arr) + ' ' + f.date.slice(5).replace('-', '/')).join(' · ');
+    el.innerHTML = `<b>${k}</b> ${a.name}<small>${times}</small>`; flightMarkers.push(new maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, -8] }).setLngLat([a.lng, a.lat])); });
+  $('flegs').innerHTML = fl.map(f => `<div class="leg"><div class="k">${f.leg}<br>${f.date.slice(5).replace('-', '/')} 週${f.dow}</div><div><b>${f.no}</b> ${f.from} ${f.dep} → ${f.to} ${f.arr}${f.ac ? ' · ' + f.ac : ''}<small>${f.note || ''}</small></div></div>`).join('');
+}
+function setFlight(on) {
+  flightOn = on; buildFlight(); if (!map.getSource('flights')) return;
+  document.body.classList.toggle('flight', on); $('flightBtn').classList.toggle('on', on); $('fcard').hidden = !on;
+  ['flights-casing', 'flights'].forEach(id => map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none'));
+  flightMarkers.forEach(m => on ? m.addTo(map) : m.remove());
+  labels.forEach(l => { if (l) l.getElement().style.display = on ? 'none' : ''; });
+  if (on) { map.fitBounds([[100, 8], [285, 62]], { padding: NARROW ? 30 : 90, pitch: 0, bearing: 0, duration: 2200 }); /* 東經 100 → 西經 75，用 285 表示才不會跨換日線斷線 */ history.replaceState(null, '', '#view=flight'); }
+  else if (SPOTS[cur]) show(cur);
+}
+$('flightBtn').onclick = () => setFlight(!flightOn); $('fclose').onclick = () => setFlight(false);
 function setBase(mode) {
   document.querySelectorAll('[data-base]').forEach(b => b.classList.toggle('on', b.dataset.base === mode));
   const vis = (id, on) => map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none');
@@ -289,9 +340,11 @@ function render(first) {
   buildPins(); buildLabels(); shownDay = -1;
   $('feedn').textContent = (DATA.log || []).length ? DATA.log.length + ' 筆' : '—';
   $('feedl').innerHTML = (DATA.log || []).map(l => `<li>${logText(l)}<small>${l.who} · ${String(l.ts).slice(5, 16)} · ${l.source === 'line' ? 'LINE' : '網頁'}</small></li>`).join('') || '<li><small>還沒有變更</small></li>';
+  const wantFlight = first && /view=flight/.test(location.hash);     // 要在 show() 改寫 hash 之前先記下來
   const hash = location.hash.match(/spot=([^&]+)/); const want = first && hash ? hash[1] : keepId;
   let i = SPOTS.findIndex(s => s.id === want); if (i < 0) i = Math.min(cur, SPOTS.length - 1); if (i < 0) i = 0;
   if (SPOTS.length) show(i, !first); else $('cn').textContent = '還沒有景點';
+  if (wantFlight) setTimeout(() => setFlight(true), 400);
 }
 function logText(l) { const a = l.after || {}, b = l.before || {}; const nm = a.name || b.name || '';
   return { add: '新增 ' + nm, update: '更新 ' + nm + (a.time && a.time !== b.time ? ' → ' + a.time : '') + (a.day !== b.day ? ' → D' + a.day : ''), delete: '刪除 ' + nm, reorder: '重排 D' + (a.day) + ' 順序', undo: '撤銷：' + nm }[l.action] || l.action; }
