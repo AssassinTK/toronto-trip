@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>加東三城 2026 · 行程地圖</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.css">
+<style>
+  :root{--ink:#1d2129;--muted:#6b7280;--panel:rgba(255,255,255,.9);--line:rgba(29,33,41,.12);--acc:#e0452f}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:#e9ecef;color:var(--ink);overflow:hidden;
+    font-family:system-ui,-apple-system,"PingFang TC","Noto Sans TC",sans-serif;-webkit-font-smoothing:antialiased}
+  #map{position:fixed;inset:0}
+  .hud{position:fixed;inset:0;pointer-events:none;z-index:2}
+  .hud>*{pointer-events:auto}
+  .btn{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;font-family:inherit}
+  .btn.dark{background:#1d2129;color:#fff;border-color:#1d2129;font-weight:600}
+  .btn.on{background:#1d2129;color:#fff;border-color:#1d2129}
+  .btn.danger{color:#c0392b;border-color:rgba(192,57,43,.35)}
+  .btn:disabled{opacity:.5;cursor:default}
+  .top{position:absolute;top:16px;left:16px;background:var(--panel);backdrop-filter:blur(12px);border:1px solid var(--line);
+    border-radius:14px;padding:14px 18px;min-width:220px;box-shadow:0 6px 30px rgba(0,0,0,.08)}
+  .top .date{display:flex;align-items:baseline;gap:8px}
+  .top .date b{font-size:34px;font-weight:600;letter-spacing:-.02em}
+  .top .date span{font-size:14px;color:var(--muted)}
+  .top .ttl{font-size:14px;margin-top:4px}
+  .top .trip{font-size:11px;color:var(--muted);margin-top:8px;padding-top:8px;border-top:1px solid var(--line);line-height:1.6}
+  .top .sync{font-size:11px;margin-top:6px;color:var(--muted)}
+  .top .sync.off{color:#c0392b}
+  .base{position:absolute;top:16px;right:56px;display:flex;gap:4px;background:var(--panel);backdrop-filter:blur(10px);
+    border:1px solid var(--line);border-radius:10px;padding:4px}
+  .base .btn{border:0;background:transparent}
+  .base .btn.on{background:#1d2129;color:#fff}
+  .card{position:absolute;right:16px;top:64px;width:320px;max-width:calc(100vw - 32px);background:var(--panel);backdrop-filter:blur(12px);
+    border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:0 6px 30px rgba(0,0,0,.08)}
+  .card .num{display:inline-block;font-size:11px;color:#fff;background:var(--acc);border-radius:99px;padding:2px 9px;font-weight:700;margin-bottom:8px}
+  .card h2{margin:0;font-size:19px;font-weight:600}
+  .card .en{font-size:11px;color:var(--muted);letter-spacing:.06em;margin:2px 0 12px}
+  .card dl{margin:0;display:grid;grid-template-columns:44px 1fr;gap:6px 10px;font-size:12.5px}
+  .card dt{color:var(--muted)}.card dd{margin:0;line-height:1.5}
+  .card .story{margin-top:12px;padding-top:11px;border-top:1px solid var(--line);font-size:12.5px;line-height:1.65;color:#3d4451}
+  .card .acts{display:flex;gap:6px;margin-top:12px}
+  .card .tog{display:none}
+  .tl{position:absolute;left:16px;right:16px;bottom:16px;background:var(--panel);backdrop-filter:blur(12px);border:1px solid var(--line);
+    border-radius:14px;padding:12px 14px;box-shadow:0 6px 30px rgba(0,0,0,.08)}
+  .days{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;align-items:center}
+  .days button{border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;font-family:inherit}
+  .days button.on{color:#fff;background:var(--c);border-color:var(--c);font-weight:600}
+  .days .add{margin-left:auto}
+  .spots{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+  .spots::-webkit-scrollbar{display:none}
+  .spots button{flex:0 0 auto;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:9px;padding:7px 11px;font-size:12px;
+    cursor:pointer;font-family:inherit;display:flex;gap:8px;align-items:center;white-space:nowrap}
+  .spots button i{font-style:normal;color:var(--muted);font-size:11px}
+  .spots button.on{background:#1d2129;color:#fff;border-color:#1d2129}
+  .spots button.on i{color:#cbd2dc}
+  .ctrl{display:flex;justify-content:space-between;align-items:center;margin-top:10px;gap:8px;flex-wrap:wrap}
+  .ctrl .l{display:flex;gap:6px}
+  .ctrl .hint{font-size:11px;color:var(--muted)}
+  .feed{position:absolute;left:16px;top:200px;width:260px;background:var(--panel);backdrop-filter:blur(12px);border:1px solid var(--line);
+    border-radius:12px;padding:10px 12px;box-shadow:0 6px 30px rgba(0,0,0,.08);font-size:12px}
+  .feed .h{display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-weight:600}
+  .feed .h span{color:var(--muted);font-weight:400;font-size:11px}
+  .feed ul{list-style:none;margin:8px 0 0;padding:0;max-height:30vh;overflow:auto}
+  .feed li{padding:6px 0;border-top:1px solid var(--line);line-height:1.45}
+  .feed li small{color:var(--muted);display:block}
+  .feed.closed ul{display:none}
+  .pinlabel{background:rgba(255,255,255,.94);border:1px solid rgba(0,0,0,.12);border-radius:10px;padding:5px 10px 5px 6px;font-size:12px;
+    display:flex;gap:7px;align-items:center;white-space:nowrap;box-shadow:0 3px 12px rgba(0,0,0,.12);transition:opacity .3s;cursor:pointer}
+  .pinlabel b{width:20px;height:20px;border-radius:50%;background:var(--c);color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center}
+  .pinlabel small{color:var(--muted)}
+  .pinlabel.dim{opacity:.4}
+  .toast{position:fixed;left:50%;bottom:150px;transform:translateX(-50%);background:#1d2129;color:#fff;border-radius:10px;padding:10px 14px;
+    font-size:13px;display:flex;gap:10px;align-items:center;z-index:5;box-shadow:0 8px 30px rgba(0,0,0,.25);opacity:0;transition:.25s;pointer-events:none}
+  .toast.show{opacity:1;pointer-events:auto}
+  .toast button{background:#fff;color:#1d2129;border:0;border-radius:6px;padding:4px 9px;font-size:12px;cursor:pointer;font-family:inherit}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:6;padding:16px}
+  .modal.show{display:flex}
+  .modal .box{background:#fff;border-radius:14px;padding:18px 20px;width:420px;max-width:100%;max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  .modal h3{margin:0 0 12px;font-size:16px}
+  .f{display:grid;grid-template-columns:64px 1fr;gap:8px 10px;align-items:center;font-size:12.5px;margin-bottom:8px}
+  .f label{color:var(--muted)}
+  .f input,.f select,.f textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-size:13px;font-family:inherit}
+  .f textarea{min-height:64px;resize:vertical}
+  .f .row{display:flex;gap:6px;align-items:center}
+  .f .row input{flex:1}
+  .geo{font-size:12px;margin:-2px 0 8px 74px;color:var(--muted)}
+  .geo div{padding:4px 0;cursor:pointer;color:var(--ink)}
+  .geo div:hover{text-decoration:underline}
+  .modal .acts{display:flex;justify-content:space-between;gap:6px;margin-top:12px}
+  .modal .acts .r{display:flex;gap:6px}
+  .maplibregl-ctrl-attrib{font-size:10px}
+  @media(max-width:760px){
+    .top{min-width:0;padding:10px 14px}.top .date b{font-size:26px}.top .trip{display:none}
+    .base{top:auto;bottom:180px;right:16px;left:auto}
+    .card{top:auto;bottom:174px;left:16px;right:16px;width:auto;padding:12px 14px}
+    .card dl,.card .story{display:none}.card.open dl{display:grid}.card.open .story{display:block}
+    .card .tog{display:block;position:absolute;right:14px;top:14px;font-size:11px;color:var(--muted);cursor:pointer}
+    .ctrl .hint{display:none}.feed{display:none}
+  }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="hud">
+  <div class="top">
+    <div class="date"><b id="hd">—</b><span id="hdow"></span></div>
+    <div class="ttl" id="htitle">—</div>
+    <div class="trip" id="htrip">—</div>
+    <div class="sync" id="sync">連線中…</div>
+  </div>
+  <div class="base">
+    <button class="btn on" data-base="3d">3D 建築</button>
+    <button class="btn" data-base="osm">街道</button>
+    <button class="btn" data-base="sat">衛星</button>
+  </div>
+  <div class="feed closed" id="feed"><div class="h" id="feedh">最近變更 <span id="feedn">—</span></div><ul id="feedl"></ul></div>
+  <div class="card" id="card">
+    <span class="tog" id="tog">展開 ▾</span>
+    <span class="num" id="cnum">—</span>
+    <h2 id="cn">—</h2><div class="en" id="ce">—</div>
+    <dl><dt>時間</dt><dd id="ct">—</dd><dt>停留</dt><dd id="cd">—</dd><dt>交通</dt><dd id="ctr">—</dd>
+        <dt>營業</dt><dd id="ch">—</dd><dt>票價</dt><dd id="cf">—</dd></dl>
+    <div class="story" id="cs">—</div>
+    <div class="acts"><button class="btn" id="edit">✎ 編輯</button><button class="btn danger" id="del">刪除</button></div>
+  </div>
+  <div class="tl">
+    <div class="days" id="days"></div>
+    <div class="spots" id="spots"></div>
+    <div class="ctrl"><div class="l"><button class="btn" id="prev">‹ 上一站</button><button class="btn" id="next">下一站 ›</button></div>
+      <span class="hint">拖曳平移 · 右鍵/兩指旋轉傾斜 · 滾輪縮放 · ← → 切站</span><button class="btn dark" id="play">▶ 故事模式</button></div>
+  </div>
+</div>
+<div class="toast" id="toast"><span id="toastt"></span><button id="toastu" hidden>撤銷</button></div>
+
+<div class="modal" id="modal"><div class="box">
+  <h3 id="mtitle">編輯景點</h3>
+  <div class="f">
+    <label>名稱</label><input id="f_name">
+    <label>英文</label><input id="f_en">
+    <label>哪一天</label><select id="f_day"></select>
+    <label>時間</label><div class="row"><input id="f_time" placeholder="09:30" style="max-width:100px"><label style="margin-left:6px">停留</label><input id="f_dur" placeholder="1 小時"></div>
+    <label>位置</label><div class="row"><input id="f_addr" placeholder="地址或地標，按搜尋"><button class="btn" id="f_geo">搜尋</button><button class="btn" id="f_pick" title="在地圖上點一下">📍</button></div>
+  </div>
+  <div class="geo" id="f_geores"></div>
+  <div class="f">
+    <label>座標</label><div class="row"><input id="f_lat" placeholder="lat"><input id="f_lng" placeholder="lng"></div>
+    <label>交通</label><input id="f_transit">
+    <label>營業</label><input id="f_hours">
+    <label>票價</label><input id="f_fee">
+    <label>故事</label><textarea id="f_story"></textarea>
+    <label>順序</label><div class="row"><button class="btn" id="f_up">▲ 往前</button><button class="btn" id="f_down">▼ 往後</button></div>
+  </div>
+  <div class="acts"><button class="btn" id="f_cancel">取消</button><div class="r"><button class="btn dark" id="f_save">儲存</button></div></div>
+</div></div>
+
+<div class="modal" id="pinm"><div class="box">
+  <h3>第一次編輯：輸入編輯碼</h3>
+  <div class="f"><label>編輯碼</label><input id="p_pin" type="password"><label>你的名字</label><input id="p_name" placeholder="顯示在變更記錄"></div>
+  <div class="acts"><button class="btn" id="p_cancel">取消</button><div class="r"><button class="btn dark" id="p_ok">確定</button></div></div>
+</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="trip-data.js"></script>
+<script>
+// ── 設定 ──────────────────────────────────────────────────────────
+const GAS_URL = new URLSearchParams(location.search).get('gas') || localStorage.getItem('tripGasUrl') || 'https://script.google.com/macros/s/AKfycbwyOq8bSV-ZARk7W7TNevLLDr40JDKr8liiF9mXwQokxJbLSBk-rboZrNepSUpyKrbEOQ/exec';
+if (new URLSearchParams(location.search).get('gas')) localStorage.setItem('tripGasUrl', GAS_URL);
+const HAS_GAS = /^https?:/.test(GAS_URL);
+const PAL = ['#e0452f','#0f9b8e','#d99a1f','#6b5bd2','#2a7de1','#d6337a','#3a8f2f','#8a5a2b','#c2410c','#0e7490','#7c3aed'];
+const dayColor = n => PAL[n % PAL.length];
+const NARROW = innerWidth < 760;
+const $ = id => document.getElementById(id);
+
+// ── 資料層：GAS → localStorage 快取 → trip-data.js ────────────────
+let DATA = null, SPOTS = [], cur = 0, shownDay = -1;
+function normalize(d) {                       // 三種來源長一樣：days[{n,date,dow,city,title,route,spots[]}], routes{}
+  d.days = (d.days || []).map(day => { day.spots = (day.spots || []).map(s => Object.assign({}, s, { lat: s.lat == null || s.lat === '' ? null : +s.lat, lng: s.lng == null || s.lng === '' ? null : +s.lng })); return day; });
+  d.routes = d.routes || {}; d.log = d.log || []; return d;
+}
+async function fetchGas(params, opts) {
+  const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), opts && opts.timeout || 12000);
+  try { const r = await fetch(GAS_URL + (params ? '?' + params : ''), Object.assign({ signal: ctl.signal, redirect: 'follow' }, opts || {})); return await r.json(); }
+  finally { clearTimeout(t); }
+}
+async function loadData(first) {
+  let d = null, src = '';
+  if (HAS_GAS) { try { d = await fetchGas('action=data'); if (!d.ok) d = null; else { src = 'gas'; localStorage.setItem('tripData', JSON.stringify(d)); } } catch (e) { } }
+  if (!d) { try { d = JSON.parse(localStorage.getItem('tripData')); if (d) src = 'cache'; } catch (e) { } }
+  if (!d) { d = JSON.parse(JSON.stringify(TRIP)); src = 'seed'; }
+  DATA = normalize(d);
+  const s = $('sync'); s.classList.toggle('off', src !== 'gas');
+  s.textContent = src === 'gas' ? '已同步 ' + (DATA.updatedAt || '').slice(5, 16) : src === 'cache' ? '離線 · 顯示上次快取' : HAS_GAS ? '連不上後端 · 顯示內建版' : '內建版（未接後端）';
+  render(first);
+}
+setInterval(async () => { if (!HAS_GAS) return; try { const p = await fetchGas('action=ping', { timeout: 8000 }); if (p.ok && p.updatedAt && p.updatedAt !== DATA.updatedAt) loadData(false); } catch (e) { } }, 45000);
+
+// ── 地圖 ──────────────────────────────────────────────────────────
+const map = new maplibregl.Map({ container: 'map', style: 'https://tiles.openfreemap.org/styles/liberty',
+  center: [-79.3839, 43.6535], zoom: NARROW ? 15.2 : 16, pitch: 60, bearing: -17, antialias: true, attributionControl: { compact: true } });
+map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
+let styleLayers = [];                                              // liberty 原本的圖層，切底圖時整組顯示/隱藏
+map.on('load', () => {
+  styleLayers = map.getStyle().layers.map(l => ({ id: l.id, type: l.type }));
+  const first = styleLayers[0].id;
+  map.addSource('osm', { type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, maxzoom: 19, attribution: '© OpenStreetMap contributors' });
+  map.addSource('esri', { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize: 256, maxzoom: 19, attribution: 'Imagery © Esri, Maxar, Earthstar Geographics' });
+  map.addLayer({ id: 'osm', type: 'raster', source: 'osm', layout: { visibility: 'none' } }, first);
+  map.addLayer({ id: 'esri', type: 'raster', source: 'esri', layout: { visibility: 'none' } }, first);
+  map.addSource('routes', { type: 'geojson', data: routeGeo() });
+  map.addLayer({ id: 'route-casing', type: 'line', source: 'routes', filter: ['==', ['get', 'vis'], 1], layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: { 'line-color': '#fff', 'line-width': ['interpolate', ['linear'], ['zoom'], 13, 4, 17, 11], 'line-opacity': .9 } });
+  map.addLayer({ id: 'route', type: 'line', source: 'routes', filter: ['==', ['get', 'vis'], 1], layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: { 'line-color': ['get', 'color'], 'line-width': ['interpolate', ['linear'], ['zoom'], 13, 2.5, 17, 6] } });
+  map.addLayer(pinLayer);
+  loadData(true);
+});
+map.on('click', e => { if (pickMode) { pickMode = false; $('f_lat').value = e.lngLat.lat.toFixed(5); $('f_lng').value = e.lngLat.lng.toFixed(5); $('modal').classList.add('show'); toast('已設定座標'); } });
+document.querySelectorAll('[data-base]').forEach(b => b.onclick = () => setBase(b.dataset.base));
+function setBase(mode) {
+  document.querySelectorAll('[data-base]').forEach(b => b.classList.toggle('on', b.dataset.base === mode));
+  const vis = (id, on) => map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none');
+  styleLayers.forEach(l => vis(l.id, mode === '3d' || (mode === 'sat' && l.type === 'symbol')));
+  vis('osm', mode === 'osm'); vis('esri', mode === 'sat');
+}
+
+// 路線依故事進度切片：過去天整條、今天到目前這站、未來不畫
+const fr = {};
+function routeGeo() {
+  if (!DATA) return { type: 'FeatureCollection', features: [] };
+  return { type: 'FeatureCollection', features: DATA.days.filter(d => DATA.routes['d' + d.n] && DATA.routes['d' + d.n].length > 1).map(d => {
+    const co = DATA.routes['d' + d.n]; const f = (fr[d.n] || { f: 0 }).f; const n = Math.max(2, Math.round(f * (co.length - 1)) + 1);
+    return { type: 'Feature', properties: { day: d.n, color: dayColor(d.n), vis: f > .002 ? 1 : 0 }, geometry: { type: 'LineString', coordinates: co.slice(0, n) } }; }) };
+}
+function cumAt(co) { const c = [0]; for (let i = 1; i < co.length; i++) { const [a, b] = co[i - 1], [x, y] = co[i]; c.push(c[i - 1] + Math.hypot((x - a) * Math.cos(b * Math.PI / 180), y - b)); } return c; }
+
+// three.js 圖釘：MapLibre custom layer，跟建築同一個 3D 空間
+const origin = maplibregl.MercatorCoordinate.fromLngLat([-79.3839, 43.6535], 0), mscale = origin.meterInMercatorCoordinateUnits();
+const pinRoot = new THREE.Group(); const pinMats = [];
+const pinLayer = { id: 'pins', type: 'custom', renderingMode: '3d',
+  onAdd(m, gl) {
+    this.cam = new THREE.Camera(); this.scene = new THREE.Scene(); this.scene.add(new THREE.AmbientLight(0xffffff, .75));
+    const sun = new THREE.DirectionalLight(0xffffff, .8); sun.position.set(.5, 1, .7); this.scene.add(sun); this.scene.add(pinRoot);
+    this.r = new THREE.WebGLRenderer({ canvas: m.getCanvas(), context: gl, antialias: true }); this.r.autoClear = false;
+  },
+  render(gl, matrix) {
+    const rotX = new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(1, 0, 0), Math.PI / 2);
+    const l = new THREE.Matrix4().makeTranslation(origin.x, origin.y, origin.z).scale(new THREE.Vector3(mscale, -mscale, mscale)).multiply(rotX);
+    this.cam.projectionMatrix = new THREE.Matrix4().fromArray(matrix).multiply(l);
+    this.r.resetState(); this.r.render(this.scene, this.cam); map.triggerRepaint();
+  } };
+function buildPins() {
+  while (pinRoot.children.length) pinRoot.remove(pinRoot.children[0]); pinMats.length = 0;
+  SPOTS.forEach(s => {
+    if (s.lat == null) { pinMats.push(null); return; }
+    const mc = maplibregl.MercatorCoordinate.fromLngLat([s.lng, s.lat], 0); const g = new THREE.Group();
+    g.position.set((mc.x - origin.x) / mscale, 0, (mc.y - origin.y) / mscale);
+    const mat = new THREE.MeshLambertMaterial({ color: new THREE.Color(dayColor(s.day)), transparent: true, depthTest: false }); pinMats.push(mat);
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(9, 34, 20), mat); cone.rotation.x = Math.PI; cone.position.y = 17; cone.renderOrder = 10; g.add(cone);
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(13, 22, 16), mat); ball.position.y = 38; ball.renderOrder = 11; g.add(ball);
+    const dot = new THREE.Mesh(new THREE.SphereGeometry(4.5, 12, 10), new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false })); dot.position.set(0, 38, 10); dot.renderOrder = 12; g.add(dot);
+    pinRoot.add(g);
+  });
+}
+let labels = [];
+function buildLabels() {
+  labels.forEach(l => l.remove()); labels = [];
+  SPOTS.forEach((s, i) => {
+    if (s.lat == null) { labels.push(null); return; }
+    const el = document.createElement('div'); el.className = 'pinlabel'; el.style.setProperty('--c', dayColor(s.day));
+    el.innerHTML = `<b>${s.idx + 1}</b>${s.name}<small>${s.time || ''}</small>`; el.onclick = () => show(i);
+    labels.push(new maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, -62] }).setLngLat([s.lng, s.lat]).addTo(map));
+  });
+}
+
+// ── 畫面 ──────────────────────────────────────────────────────────
+function render(first) {
+  const keepId = SPOTS[cur] && SPOTS[cur].id;
+  SPOTS = []; DATA.days.forEach(d => d.spots.forEach((s, i) => SPOTS.push(Object.assign({}, s, { day: d.n, date: d.date, dow: d.dow, city: d.city, dtitle: d.title, idx: i }))));
+  DATA.days.forEach(d => { const co = DATA.routes['d' + d.n]; if (!co || co.length < 2) return; const cum = cumAt(co), total = cum[cum.length - 1];
+    SPOTS.filter(s => s.day === d.n && s.lat != null).forEach(s => { let best = 0, bd = 1e9; co.forEach(([x, y], i) => { const dd = (x - s.lng) ** 2 + (y - s.lat) ** 2; if (dd < bd) { bd = dd; best = i; } }); s._f = cum[best] / total; });
+    if (!fr[d.n]) fr[d.n] = { f: 0, t: 0 }; });
+  const fl = DATA.flights || []; $('htrip').innerHTML = fl.length ? `✈ ${fl[1] ? fl[1].date.slice(5).replace('-', '/') + ' ' + fl[1].no + ' ' + fl[1].arr + ' 抵 ' + fl[1].to : ''}<br>✈ ${fl[2] ? fl[2].date.slice(5).replace('-', '/') + ' ' + fl[2].no + ' ' + fl[2].dep + ' 離 ' + fl[2].from : ''}` : '';
+  const daysEl = $('days'); daysEl.innerHTML = '';
+  DATA.days.forEach(d => { const b = document.createElement('button'); b.style.setProperty('--c', dayColor(d.n));
+    b.textContent = `D${d.n} · ${d.date.slice(5).replace('-', '/')} ${d.dow}`; b.title = d.title; b.onclick = () => { const i = SPOTS.findIndex(s => s.day === d.n); i >= 0 ? show(i) : openEdit(null, d.n); }; daysEl.appendChild(b); });
+  const add = document.createElement('button'); add.className = 'add'; add.textContent = '＋ 新增景點'; add.onclick = () => openEdit(null, SPOTS[cur] ? SPOTS[cur].day : DATA.days[0].n); daysEl.appendChild(add);
+  buildPins(); buildLabels(); shownDay = -1;
+  $('feedn').textContent = (DATA.log || []).length ? DATA.log.length + ' 筆' : '—';
+  $('feedl').innerHTML = (DATA.log || []).map(l => `<li>${logText(l)}<small>${l.who} · ${String(l.ts).slice(5, 16)} · ${l.source === 'line' ? 'LINE' : '網頁'}</small></li>`).join('') || '<li><small>還沒有變更</small></li>';
+  const hash = location.hash.match(/spot=([^&]+)/); const want = first && hash ? hash[1] : keepId;
+  let i = SPOTS.findIndex(s => s.id === want); if (i < 0) i = Math.min(cur, SPOTS.length - 1); if (i < 0) i = 0;
+  if (SPOTS.length) show(i, !first); else $('cn').textContent = '還沒有景點';
+}
+function logText(l) { const a = l.after || {}, b = l.before || {}; const nm = a.name || b.name || '';
+  return { add: '新增 ' + nm, update: '更新 ' + nm + (a.time && a.time !== b.time ? ' → ' + a.time : '') + (a.day !== b.day ? ' → D' + a.day : ''), delete: '刪除 ' + nm, reorder: '重排 D' + (a.day) + ' 順序', undo: '撤銷：' + nm }[l.action] || l.action; }
+function buildSpots(day) { const el = $('spots'); el.innerHTML = ''; SPOTS.forEach((s, i) => { if (s.day !== day) return; const b = document.createElement('button');
+  b.innerHTML = `<i>${s.time || '—'}</i>${s.idx + 1}. ${s.name}`; b.onclick = () => show(i); b.dataset.i = i; el.appendChild(b); }); }
+let anim = null;
+function show(i, keepCam) {
+  cur = Math.max(0, Math.min(SPOTS.length - 1, i)); const s = SPOTS[cur];
+  $('hd').textContent = s.date.slice(5).replace('-', '/'); $('hdow').textContent = '週' + s.dow; $('htitle').textContent = `D${s.day} · ${s.dtitle}`;
+  $('cnum').textContent = `D${s.day} · 第 ${s.idx + 1} 站`; $('card').style.setProperty('--acc', dayColor(s.day));
+  $('cn').textContent = s.name; $('ce').textContent = (s.en || s.city || '').toUpperCase(); $('ct').textContent = s.time || '—'; $('cd').textContent = s.dur || '—';
+  $('ctr').textContent = s.transit || '—'; $('ch').textContent = s.hours || '—'; $('cf').textContent = s.fee || '—'; $('cs').textContent = s.story || (s.addr ? '📍 ' + s.addr : '');
+  if (shownDay !== s.day) { buildSpots(s.day); shownDay = s.day; }
+  [...$('days').children].forEach((b, k) => b.classList.toggle('on', DATA.days[k] && DATA.days[k].n === s.day));
+  [...$('spots').children].forEach(b => { const on = +b.dataset.i === cur; b.classList.toggle('on', on); if (on) b.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' }); });
+  DATA.days.forEach(d => { if (fr[d.n]) fr[d.n].t = d.n < s.day ? 1 : d.n === s.day ? (s._f || 0) : 0; });
+  pinMats.forEach((m, k) => { if (m) m.opacity = k <= cur ? 1 : .35; }); labels.forEach((l, k) => { if (l) l.getElement().classList.toggle('dim', k > cur); });
+  if (s.lat != null && !keepCam) map.flyTo({ center: [s.lng, s.lat], zoom: NARROW ? 15.6 : 16.4, pitch: 60, bearing: -17 + ((cur % 3) - 1) * 12, duration: 1700, essential: true });
+  history.replaceState(null, '', '#spot=' + s.id);
+  if (!anim) anim = requestAnimationFrame(step);
+}
+function step() { let go = false; Object.keys(fr).forEach(k => { const o = fr[k]; const df = o.t - o.f; if (Math.abs(df) > .002) { o.f += df * .06; go = true; } else o.f = o.t; });
+  const src = map.getSource('routes'); if (src) src.setData(routeGeo()); anim = go ? requestAnimationFrame(step) : null; }
+$('prev').onclick = () => show(cur - 1); $('next').onclick = () => show(cur + 1);
+addEventListener('keydown', e => { if ($('modal').classList.contains('show') || $('pinm').classList.contains('show')) return; if (e.code === 'ArrowRight') show(cur + 1); if (e.code === 'ArrowLeft') show(cur - 1); });
+let playing = null; $('play').onclick = () => { if (playing) { clearInterval(playing); playing = null; $('play').textContent = '▶ 故事模式'; return; }
+  $('play').textContent = '❚❚ 暫停'; if (cur >= SPOTS.length - 1) show(0); playing = setInterval(() => { if (cur >= SPOTS.length - 1) { $('play').click(); return; } show(cur + 1); }, 4500); };
+$('tog').onclick = () => { const c = $('card'); c.classList.toggle('open'); $('tog').textContent = c.classList.contains('open') ? '收合 ▴' : '展開 ▾'; };
+$('feedh').onclick = () => $('feed').classList.toggle('closed');
+
+// ── 編輯 ──────────────────────────────────────────────────────────
+let pickMode = false, editing = null;
+function toast(text, logId) { const t = $('toast'); $('toastt').textContent = text; const u = $('toastu'); u.hidden = !logId; u.onclick = () => { post({ action: 'undo', logId }); t.classList.remove('show'); };
+  t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), logId ? 8000 : 3000); }
+function needPin() { return new Promise(res => { if (localStorage.getItem('tripPin')) return res(true); $('pinm').classList.add('show'); $('p_pin').focus();
+  $('p_ok').onclick = () => { if (!$('p_pin').value) return; localStorage.setItem('tripPin', $('p_pin').value); if ($('p_name').value) localStorage.setItem('tripName', $('p_name').value); $('pinm').classList.remove('show'); res(true); };
+  $('p_cancel').onclick = () => { $('pinm').classList.remove('show'); res(false); }; }); }
+async function post(payload) {
+  if (!HAS_GAS) { toast('未接後端，這個版本只能看不能改'); return null; }
+  if (!await needPin()) return null;
+  payload.pin = localStorage.getItem('tripPin'); payload.who = localStorage.getItem('tripName') || '網頁';
+  $('sync').textContent = '儲存中…';
+  try {
+    const r = await fetchGas('', { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'text/plain;charset=utf-8' }, timeout: 30000 });
+    if (!r.ok) { if (r.msg === 'pin') { localStorage.removeItem('tripPin'); toast('編輯碼不對，再試一次'); } else toast('失敗：' + r.msg); $('sync').textContent = '未儲存'; return null; }
+    if (r.data) { DATA = normalize(r.data); localStorage.setItem('tripData', JSON.stringify(r.data)); render(false);
+      if (r.spotId) { const i = SPOTS.findIndex(s => s.id === r.spotId); if (i >= 0) show(i); } }
+    $('sync').textContent = '已同步 ' + (DATA.updatedAt || '').slice(5, 16); $('sync').classList.remove('off');
+    if (r.summary) toast(r.summary, payload.action === 'undo' ? null : r.logId);
+    return r;
+  } catch (e) { toast('連不上後端'); $('sync').textContent = '未儲存'; return null; }
+}
+function openEdit(spot, day) {
+  editing = spot; $('mtitle').textContent = spot ? '編輯景點' : '新增景點';
+  const sel = $('f_day'); sel.innerHTML = DATA.days.map(d => `<option value="${d.n}">D${d.n} · ${d.date.slice(5).replace('-', '/')} 週${d.dow} · ${d.city}</option>`).join('');
+  sel.value = spot ? spot.day : day;
+  ['name', 'en', 'time', 'dur', 'addr', 'lat', 'lng', 'transit', 'hours', 'fee', 'story'].forEach(k => $('f_' + k).value = spot && spot[k] != null ? spot[k] : '');
+  $('f_geores').innerHTML = ''; $('f_up').disabled = $('f_down').disabled = !spot;
+  $('modal').classList.add('show'); $('f_name').focus();
+}
+$('edit').onclick = () => SPOTS[cur] && openEdit(SPOTS[cur]);
+$('del').onclick = async () => { const s = SPOTS[cur]; if (!s) return; if (!confirmInline('刪除「' + s.name + '」？（可撤銷）')) return; await post({ action: 'delete', id: s.id }); };
+function confirmInline(msg) { return window.confirm ? confirm(msg) : true; }   // 桌機/手機都有原生 confirm，這裡刻意不做自訂彈窗
+$('f_cancel').onclick = () => $('modal').classList.remove('show');
+$('f_pick').onclick = () => { pickMode = true; $('modal').classList.remove('show'); toast('在地圖上點一下要放的位置'); };
+$('f_geo').onclick = async () => { const q = $('f_addr').value.trim(); if (!q || !HAS_GAS) return; $('f_geores').textContent = '搜尋中…';
+  try { const r = await fetchGas('action=geocode&q=' + encodeURIComponent(q) + '&city=' + encodeURIComponent(DATA.days.find(d => d.n === +$('f_day').value).city || 'Toronto'));
+    $('f_geores').innerHTML = (r.results || []).map(x => `<div data-lat="${x.lat}" data-lng="${x.lng}">📍 ${x.name}</div>`).join('') || '找不到，換個寫法或直接在地圖上點';
+    $('f_geores').querySelectorAll('div').forEach(el => el.onclick = () => { $('f_lat').value = (+el.dataset.lat).toFixed(5); $('f_lng').value = (+el.dataset.lng).toFixed(5); $('f_addr').value = el.textContent.replace('📍 ', ''); $('f_geores').innerHTML = ''; });
+  } catch (e) { $('f_geores').textContent = '搜尋失敗'; } };
+$('f_save').onclick = async () => {
+  const spot = { day: +$('f_day').value }; if (editing) spot.id = editing.id;
+  ['name', 'en', 'time', 'dur', 'addr', 'transit', 'hours', 'fee', 'story'].forEach(k => spot[k] = $('f_' + k).value.trim());
+  if (!spot.name) { toast('名稱不能空'); return; }
+  if (spot.time && !/^\d{1,2}:\d{2}$/.test(spot.time)) { toast('時間格式 09:30'); return; }
+  if ($('f_lat').value) { spot.lat = +$('f_lat').value; spot.lng = +$('f_lng').value; }
+  $('modal').classList.remove('show'); await post({ action: 'upsert', spot });
+};
+async function nudge(dir) { const s = editing; if (!s) return; const ids = SPOTS.filter(x => x.day === s.day).map(x => x.id); const i = ids.indexOf(s.id), j = i + dir; if (j < 0 || j >= ids.length) return;
+  [ids[i], ids[j]] = [ids[j], ids[i]]; $('modal').classList.remove('show'); await post({ action: 'reorder', day: s.day, ids }); }
+$('f_up').onclick = () => nudge(-1); $('f_down').onclick = () => nudge(1);
+</script>
+</body>
+</html>
