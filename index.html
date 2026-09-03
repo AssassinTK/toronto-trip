@@ -103,6 +103,7 @@
     .base{top:auto;bottom:180px;right:16px;left:auto}
     .card{top:auto;bottom:174px;left:16px;right:16px;width:auto;padding:12px 14px}
     .card dl,.card .story{display:none}.card.open dl{display:grid}.card.open .story{display:block}
+    #fcard #flegs{display:none}#fcard.open #flegs{display:block}#fcard{bottom:24px}
     .card .tog{display:block;position:absolute;right:14px;top:14px;font-size:11px;color:var(--muted);cursor:pointer}
     .ctrl .hint{display:none}.feed{display:none}
   }
@@ -124,6 +125,7 @@
     <button class="btn" id="flightBtn" title="台北 ⇄ 多倫多航線">✈ 航程</button>
   </div>
   <div class="card" id="fcard" hidden>
+    <span class="tog" id="ftog">展開 ▾</span>
     <span class="num" style="background:#1d2129">✈ 國泰 F9R9MP · 2 人</span>
     <h2>台北 ⇄ 多倫多</h2><div class="en">TPE → HKG → YYZ · 經香港轉機</div>
     <div id="flegs"></div>
@@ -276,6 +278,7 @@ function setFlight(on) {
   else if (SPOTS[cur]) show(cur);
 }
 $('flightBtn').onclick = () => setFlight(!flightOn); $('fclose').onclick = () => setFlight(false);
+$('ftog').onclick = () => { const c = $('fcard'); c.classList.toggle('open'); $('ftog').textContent = c.classList.contains('open') ? '收合 ▴' : '展開 ▾'; };
 function setBase(mode) {
   document.querySelectorAll('[data-base]').forEach(b => b.classList.toggle('on', b.dataset.base === mode));
   const vis = (id, on) => map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none');
