@@ -245,6 +245,7 @@ function greatCircle(a, b, n) {                       // 球面插值；經度�
     const x = A * Math.cos(la1) * Math.cos(lo1) + B * Math.cos(la2) * Math.cos(lo2), y = A * Math.cos(la1) * Math.sin(lo1) + B * Math.cos(la2) * Math.sin(lo2), z = A * Math.sin(la1) + B * Math.sin(la2);
     let lng = Math.atan2(y, x) / r, lat = Math.atan2(z, Math.hypot(x, y)) / r;
     if (prev != null) { while (lng - prev > 180) lng -= 360; while (lng - prev < -180) lng += 360; } prev = lng; pts.push([lng, lat]); }
+  if (pts[0][0] < 0) pts.forEach(p => p[0] += 360);     // 去回程都放在東經 100°～290° 這一側，合起來取景才不會變成整個世界
   return pts;
 }
 let flightMarkers = [], flightOn = false;
