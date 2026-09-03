@@ -52,7 +52,7 @@ const TRIP = {
     {id:'montmorency',name:'蒙莫朗西瀑布',en:'Montmorency Falls',lat:46.8906,lng:-71.1478,time:'10:00',dur:'3 小時',
      transit:'800 號公車轉接駁',hours:'—',fee:'依官網',story:'比尼加拉高 30 公尺，有吊橋橫過瀑布正上方。'},
    ]},
-  {n:4,date:'2026-10-26',dow:'一',city:'Montréal',title:'魁北克 🚆 火車 → 蒙特婁（大姐指定火車，班次待選）',
+  {n:4,date:'2026-10-26',dow:'一',city:'Québec',title:'魁北克 🚆 火車 → 蒙特婁（大姐指定火車，班次待選）',
    spots:[]},
   {n:5,date:'2026-10-27',dow:'二',city:'Montréal',title:'舊蒙特婁',
    spots:[
