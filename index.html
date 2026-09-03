@@ -268,7 +268,7 @@ function setFlight(on) {
   flightMarkers.forEach(m => on ? m.addTo(map) : m.remove());
   labels.forEach(l => { if (l) l.getElement().style.display = on ? 'none' : ''; });
   if (on) {                                          // 依整條航線的座標取景（大圓會繞北極圈上空，經度已連續化所以不會跨換日線斷開）
-    const b = new maplibregl.LngLatBounds(); map.getSource('flights')._data.features.forEach(f => f.geometry.coordinates.forEach(c => b.extend(c)));
+    const b = new maplibregl.LngLatBounds(); map.getSource('flights')._data.features.forEach(f => f.geometry.coordinates.forEach(c => b.extend([c[0], Math.min(c[1], 72)])));   // 北緯壓到 72°，麥卡托才不會被極區撐爆
     map.fitBounds(b, { padding: NARROW ? { top: 60, bottom: 40, left: 20, right: 20 } : { top: 70, bottom: 60, left: 260, right: 360 }, pitch: 0, bearing: 0, duration: 2200 });
     history.replaceState(null, '', '#view=flight');
   }
