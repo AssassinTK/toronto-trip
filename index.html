@@ -253,7 +253,9 @@ function buildFlight() {
   const feats = fl.map((f, i) => ({ type: 'Feature', properties: { leg: f.leg, no: f.no, out: f.leg === '去程' ? 1 : 0 }, geometry: { type: 'LineString', coordinates: greatCircle(AIRPORTS[f.from], AIRPORTS[f.to], 120) } }));
   map.addSource('flights', { type: 'geojson', data: { type: 'FeatureCollection', features: feats } });
   map.addLayer({ id: 'flights-casing', type: 'line', source: 'flights', layout: { visibility: 'none', 'line-cap': 'round' }, paint: { 'line-color': '#fff', 'line-width': 6, 'line-opacity': .9 } });
-  map.addLayer({ id: 'flights', type: 'line', source: 'flights', layout: { visibility: 'none', 'line-cap': 'round' }, paint: { 'line-color': ['case', ['==', ['get', 'out'], 1], '#e0452f', '#2a7de1'], 'line-width': 3, 'line-dasharray': ['case', ['==', ['get', 'out'], 1], ['literal', [1, 0]], ['literal', [2, 2]]] } });
+  // line-dasharray 不能用資料驅動的表達式（整層會靜默不畫），去程／回程拆成兩層
+  map.addLayer({ id: 'flights', type: 'line', source: 'flights', filter: ['==', ['get', 'out'], 1], layout: { visibility: 'none', 'line-cap': 'round' }, paint: { 'line-color': '#e0452f', 'line-width': 3 } });
+  map.addLayer({ id: 'flights-back', type: 'line', source: 'flights', filter: ['==', ['get', 'out'], 0], layout: { visibility: 'none', 'line-cap': 'round' }, paint: { 'line-color': '#2a7de1', 'line-width': 3, 'line-dasharray': [2, 2] } });
   Object.keys(AIRPORTS).forEach(k => { const a = AIRPORTS[k]; const el = document.createElement('div'); el.className = 'flightlabel';
     const times = fl.filter(f => f.from === k || f.to === k).map(f => (f.from === k ? '出 ' + f.dep : '抵 ' + f.arr) + ' ' + f.date.slice(5).replace('-', '/')).join(' · ');
     el.innerHTML = `<b>${k}</b> ${a.name}<small>${times}</small>`; flightMarkers.push(new maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, -8] }).setLngLat([a.lng, a.lat])); });
@@ -262,7 +264,7 @@ function buildFlight() {
 function setFlight(on) {
   flightOn = on; buildFlight(); if (!map.getSource('flights')) return;
   document.body.classList.toggle('flight', on); $('flightBtn').classList.toggle('on', on); $('fcard').hidden = !on;
-  ['flights-casing', 'flights'].forEach(id => map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none'));
+  ['flights-casing', 'flights', 'flights-back'].forEach(id => map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none'));
   flightMarkers.forEach(m => on ? m.addTo(map) : m.remove());
   labels.forEach(l => { if (l) l.getElement().style.display = on ? 'none' : ''; });
   if (on) { map.fitBounds([[100, 8], [285, 62]], { padding: NARROW ? 30 : 90, pitch: 0, bearing: 0, duration: 2200 }); /* 東經 100 → 西經 75，用 285 表示才不會跨換日線斷線 */ history.replaceState(null, '', '#view=flight'); }
