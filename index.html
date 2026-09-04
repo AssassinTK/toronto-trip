@@ -137,7 +137,7 @@
     <span class="tog" id="tog">展開 ▾</span>
     <span class="num" id="cnum">—</span>
     <h2 id="cn">—</h2><div class="en" id="ce">—</div>
-    <dl><dt>時間</dt><dd id="ct">—</dd><dt>停留</dt><dd id="cd">—</dd><dt>交通</dt><dd id="ctr">—</dd>
+    <dl><dt>時間</dt><dd id="ct">—</dd><dt>停留</dt><dd id="cd">—</dd><dt>移動</dt><dd id="cmv">—</dd><dt>交通</dt><dd id="ctr">—</dd>
         <dt>營業</dt><dd id="ch">—</dd><dt>票價</dt><dd id="cf">—</dd></dl>
     <div class="story" id="cs">—</div>
     <div class="acts"><button class="btn" id="edit">✎ 編輯</button><button class="btn danger" id="del">刪除</button></div>
@@ -351,21 +351,26 @@ function render(first) {
   $('feedn').textContent = (DATA.log || []).length ? DATA.log.length + ' 筆' : '—';
   $('feedl').innerHTML = (DATA.log || []).map(l => `<li>${logText(l)}<small>${l.who} · ${String(l.ts).slice(5, 16)} · ${l.source === 'line' ? 'LINE' : '網頁'}</small></li>`).join('') || '<li><small>還沒有變更</small></li>';
   const wantFlight = first && /view=flight/.test(location.hash);     // 要在 show() 改寫 hash 之前先記下來
-  const hash = location.hash.match(/spot=([^&]+)/); const want = first && hash ? hash[1] : keepId;
-  let i = SPOTS.findIndex(s => s.id === want); if (i < 0) i = Math.min(cur, SPOTS.length - 1); if (i < 0) i = 0;
+  const hash = location.hash.match(/spot=([^&]+)/); const wantDay = first && location.hash.match(/day=(\d+)/);
+  const want = first && hash ? hash[1] : keepId;
+  let i = SPOTS.findIndex(s => s.id === want);
+  if (i < 0 && wantDay) i = SPOTS.findIndex(s => s.day === +wantDay[1]);      // LINE 卡片的「看地圖」可以只指定某一天
+  if (i < 0) i = Math.min(cur, SPOTS.length - 1); if (i < 0) i = 0;
   if (SPOTS.length) show(i, !first); else $('cn').textContent = '還沒有景點';
   if (wantFlight) setTimeout(() => setFlight(true), 400);
 }
 function logText(l) { const a = l.after || {}, b = l.before || {}; const nm = a.name || b.name || '';
   return { add: '新增 ' + nm, update: '更新 ' + nm + (a.time && a.time !== b.time ? ' → ' + a.time : '') + (a.day !== b.day ? ' → D' + a.day : ''), delete: '刪除 ' + nm, reorder: '重排 D' + (a.day) + ' 順序', undo: '撤銷：' + nm }[l.action] || l.action; }
 function buildSpots(day) { const el = $('spots'); el.innerHTML = ''; SPOTS.forEach((s, i) => { if (s.day !== day) return; const b = document.createElement('button');
-  b.innerHTML = `<i>${s.time || '—'}</i>${s.idx + 1}. ${s.name}`; b.onclick = () => show(i); b.dataset.i = i; el.appendChild(b); }); }
+  b.innerHTML = `<i>${s.time || '—'}</i>${s.idx + 1}. ${s.name}${+s.move ? `<i>${s.movemode === '步行' ? '🚶' : '🚇'}${s.move}分</i>` : ''}`;
+  b.onclick = () => show(i); b.dataset.i = i; el.appendChild(b); }); }
 let anim = null;
 function show(i, keepCam) {
   cur = Math.max(0, Math.min(SPOTS.length - 1, i)); const s = SPOTS[cur];
   $('hd').textContent = s.date.slice(5).replace('-', '/'); $('hdow').textContent = '週' + s.dow; $('htitle').textContent = `D${s.day} · ${s.dtitle}`;
   $('cnum').textContent = `D${s.day} · 第 ${s.idx + 1} 站`; $('card').style.setProperty('--acc', dayColor(s.day));
   $('cn').textContent = s.name; $('ce').textContent = (s.en || s.city || '').toUpperCase(); $('ct').textContent = s.time || '—'; $('cd').textContent = s.dur || '—';
+  $('cmv').textContent = +s.move ? '從上一站 ' + (s.movemode || '移動') + ' 約 ' + s.move + ' 分' : (s.idx === 0 ? '這天第一站' : '—');
   $('ctr').textContent = s.transit || '—'; $('ch').textContent = s.hours || '—'; $('cf').textContent = s.fee || '—'; $('cs').textContent = s.story || (s.addr ? '📍 ' + s.addr : '');
   if (shownDay !== s.day) { buildSpots(s.day); shownDay = s.day; }
   [...$('days').children].forEach((b, k) => b.classList.toggle('on', DATA.days[k] && DATA.days[k].n === s.day));
