@@ -172,12 +172,6 @@
   <div class="acts"><button class="btn" id="f_cancel">取消</button><div class="r"><button class="btn dark" id="f_save">儲存</button></div></div>
 </div></div>
 
-<div class="modal" id="namem"><div class="box">
-  <h3>第一次編輯：你的名字</h3>
-  <div class="f"><label>你的名字</label><input id="p_name" placeholder="顯示在變更記錄"></div>
-  <div class="acts"><button class="btn" id="p_cancel">取消</button><div class="r"><button class="btn dark" id="p_ok">確定</button></div></div>
-</div></div>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="trip-data.js"></script>
@@ -384,7 +378,7 @@ function show(i, keepCam) {
 function step() { let go = false; Object.keys(fr).forEach(k => { const o = fr[k]; const df = o.t - o.f; if (Math.abs(df) > .002) { o.f += df * .06; go = true; } else o.f = o.t; });
   const src = map.getSource('routes'); if (src) src.setData(routeGeo()); anim = go ? requestAnimationFrame(step) : null; }
 $('prev').onclick = () => show(cur - 1); $('next').onclick = () => show(cur + 1);
-addEventListener('keydown', e => { if ($('modal').classList.contains('show') || $('namem').classList.contains('show')) return; if (e.code === 'ArrowRight') show(cur + 1); if (e.code === 'ArrowLeft') show(cur - 1); });
+addEventListener('keydown', e => { if ($('modal').classList.contains('show')) return; if (e.code === 'ArrowRight') show(cur + 1); if (e.code === 'ArrowLeft') show(cur - 1); });
 let playing = null; $('play').onclick = () => { if (playing) { clearInterval(playing); playing = null; $('play').textContent = '▶ 故事模式'; return; }
   $('play').textContent = '❚❚ 暫停'; if (cur >= SPOTS.length - 1) show(0); playing = setInterval(() => { if (cur >= SPOTS.length - 1) { $('play').click(); return; } show(cur + 1); }, 4500); };
 $('tog').onclick = () => { const c = $('card'); c.classList.toggle('open'); $('tog').textContent = c.classList.contains('open') ? '收合 ▴' : '展開 ▾'; };
@@ -394,13 +388,9 @@ $('feedh').onclick = () => $('feed').classList.toggle('closed');
 let pickMode = false, editing = null;
 function toast(text, logId) { const t = $('toast'); $('toastt').textContent = text; const u = $('toastu'); u.hidden = !logId; u.onclick = () => { post({ action: 'undo', logId }); t.classList.remove('show'); };
   t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), logId ? 8000 : 3000); }
-function needName() { return new Promise(res => { if (localStorage.getItem('tripName')) return res(true); $('namem').classList.add('show'); $('p_name').focus();
-  $('p_ok').onclick = () => { localStorage.setItem('tripName', $('p_name').value.trim() || '網頁'); $('namem').classList.remove('show'); res(true); };
-  $('p_cancel').onclick = () => { $('namem').classList.remove('show'); res(false); }; }); }
 async function post(payload) {
   if (!HAS_GAS) { toast('未接後端，這個版本只能看不能改'); return null; }
-  if (!await needName()) return null;
-  payload.who = localStorage.getItem('tripName') || '網頁';
+  payload.who = '網頁';
   $('sync').textContent = '儲存中…';
   try {
     const r = await fetchGas('', { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'text/plain;charset=utf-8' }, timeout: 30000 });
