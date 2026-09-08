@@ -18,6 +18,27 @@
   .btn.on{background:#1d2129;color:#fff;border-color:#1d2129}
   .btn.danger{color:#c0392b;border-color:rgba(192,57,43,.35)}
   .btn:disabled{opacity:.5;cursor:default}
+  /* 總表：一次看到全部、直接在格子裡改 */
+  .sheet{position:fixed;inset:0;z-index:7;background:#f4f5f7;display:none;flex-direction:column}
+  .sheet.show{display:flex}
+  .sheet .sh{display:flex;align-items:center;gap:10px;padding:12px 16px;background:#fff;border-bottom:1px solid var(--line);flex:0 0 auto}
+  .sheet .sh h3{margin:0;font-size:15px;flex:1}
+  .sheet .sh .n{font-size:11px;color:var(--muted)}
+  .sheet .sb{flex:1;overflow:auto;padding:12px 16px 40px}
+  .sheet table{border-collapse:collapse;width:100%;min-width:720px;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .sheet th{font-size:11px;color:var(--muted);font-weight:600;text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap;position:sticky;top:0;background:#fff;z-index:1}
+  .sheet td{padding:4px 6px;border-bottom:1px solid rgba(29,33,41,.06);vertical-align:middle}
+  .sheet tr.dayrow td{background:#eef0f3;font-size:12px;font-weight:600;padding:7px 10px;color:var(--ink)}
+  .sheet tr.dayrow small{font-weight:400;color:var(--muted);margin-left:8px}
+  .sheet tr.dirty td{background:#fff8e6}
+  .sheet input,.sheet select{border:1px solid transparent;background:transparent;border-radius:6px;padding:5px 6px;font:inherit;font-size:13px;width:100%;color:inherit}
+  .sheet input:focus,.sheet select:focus{outline:0;border-color:#1d2129;background:#fff}
+  .sheet input:hover,.sheet select:hover{border-color:var(--line)}
+  .sheet .c-t{width:74px}.sheet .c-d{width:150px}.sheet .c-s{width:110px}.sheet .c-a{width:132px;white-space:nowrap}
+  .sheet .c-a .btn{padding:4px 7px;font-size:11px;margin-right:3px}
+  .sheet .mv{font-size:11px;color:var(--muted);white-space:nowrap}
+  .sheet .addrow td{padding:8px 10px}
+  @media (max-width:640px){.sheet .sb{padding:8px 8px 40px}}
   .top{position:absolute;top:16px;left:16px;background:var(--panel);backdrop-filter:blur(12px);border:1px solid var(--line);
     border-radius:14px;padding:14px 18px;min-width:220px;box-shadow:0 6px 30px rgba(0,0,0,.08)}
   .top .date{display:flex;align-items:baseline;gap:8px}
@@ -79,8 +100,9 @@
   .pinlabel small{color:var(--muted)}
   .pinlabel.dim{opacity:.4}
   .toast{position:fixed;left:50%;bottom:150px;transform:translateX(-50%);background:#1d2129;color:#fff;border-radius:10px;padding:10px 14px;
-    font-size:13px;display:flex;gap:10px;align-items:center;z-index:5;box-shadow:0 8px 30px rgba(0,0,0,.25);opacity:0;transition:.25s;pointer-events:none}
+    font-size:13px;display:flex;gap:10px;align-items:center;z-index:9;box-shadow:0 8px 30px rgba(0,0,0,.25);opacity:0;transition:.25s;pointer-events:none}
   .toast.show{opacity:1;pointer-events:auto}
+  body.sheeting .toast{bottom:24px}
   .toast button{background:#fff;color:#1d2129;border:0;border-radius:6px;padding:4px 9px;font-size:12px;cursor:pointer;font-family:inherit}
   .modal{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:6;padding:16px}
   .modal.show{display:flex}
@@ -123,6 +145,7 @@
     <button class="btn" data-base="osm">街道</button>
     <button class="btn" data-base="sat">衛星</button>
     <button class="btn" id="flightBtn" title="台北 ⇄ 多倫多航線">✈ 航程</button>
+    <button class="btn" id="sheetBtn" title="所有景點一次改">▤ 總表</button>
   </div>
   <div class="card" id="fcard" hidden>
     <span class="tog" id="ftog">展開 ▾</span>
@@ -149,6 +172,11 @@
       <span class="hint">拖曳平移 · 右鍵/兩指旋轉傾斜 · 滾輪縮放 · ← → 切站</span><button class="btn dark" id="play">▶ 故事模式</button></div>
   </div>
 </div>
+<div class="sheet" id="sheet"><div class="sh">
+  <h3>行程總表</h3><span class="n" id="sh_n">—</span>
+  <button class="btn" id="sh_close">回到地圖</button>
+</div><div class="sb"><table id="sh_t"></table></div></div>
+
 <div class="toast" id="toast"><span id="toastt"></span><button id="toastu" hidden>撤銷</button></div>
 
 <div class="modal" id="modal"><div class="box">
@@ -351,6 +379,7 @@ function render(first) {
   if (i < 0 && wantDay) i = SPOTS.findIndex(s => s.day === +wantDay[1]);      // LINE 卡片的「看地圖」可以只指定某一天
   if (i < 0) i = Math.min(cur, SPOTS.length - 1); if (i < 0) i = 0;
   if (SPOTS.length) show(i, !first); else $('cn').textContent = '還沒有景點';
+  buildSheet();                                            // 總表開著的時候，資料一變就跟著重畫
   if (wantFlight) setTimeout(() => setFlight(true), 400);
 }
 function logText(l) { const a = l.after || {}, b = l.before || {}; const nm = a.name || b.name || '';
@@ -378,7 +407,7 @@ function show(i, keepCam) {
 function step() { let go = false; Object.keys(fr).forEach(k => { const o = fr[k]; const df = o.t - o.f; if (Math.abs(df) > .002) { o.f += df * .06; go = true; } else o.f = o.t; });
   const src = map.getSource('routes'); if (src) src.setData(routeGeo()); anim = go ? requestAnimationFrame(step) : null; }
 $('prev').onclick = () => show(cur - 1); $('next').onclick = () => show(cur + 1);
-addEventListener('keydown', e => { if ($('modal').classList.contains('show')) return; if (e.code === 'ArrowRight') show(cur + 1); if (e.code === 'ArrowLeft') show(cur - 1); });
+addEventListener('keydown', e => { if ($('modal').classList.contains('show') || $('sheet').classList.contains('show')) return; if (e.code === 'ArrowRight') show(cur + 1); if (e.code === 'ArrowLeft') show(cur - 1); });
 let playing = null; $('play').onclick = () => { if (playing) { clearInterval(playing); playing = null; $('play').textContent = '▶ 故事模式'; return; }
   $('play').textContent = '❚❚ 暫停'; if (cur >= SPOTS.length - 1) show(0); playing = setInterval(() => { if (cur >= SPOTS.length - 1) { $('play').click(); return; } show(cur + 1); }, 4500); };
 $('tog').onclick = () => { const c = $('card'); c.classList.toggle('open'); $('tog').textContent = c.classList.contains('open') ? '收合 ▴' : '展開 ▾'; };
@@ -431,6 +460,72 @@ $('f_save').onclick = async () => {
 async function nudge(dir) { const s = editing; if (!s) return; const ids = SPOTS.filter(x => x.day === s.day).map(x => x.id); const i = ids.indexOf(s.id), j = i + dir; if (j < 0 || j >= ids.length) return;
   [ids[i], ids[j]] = [ids[j], ids[i]]; $('modal').classList.remove('show'); await post({ action: 'reorder', day: s.day, ids }); }
 $('f_up').onclick = () => nudge(-1); $('f_down').onclick = () => nudge(1);
+
+// ── 總表：所有天所有站一次列出來，直接在格子裡改 ────────────────────
+// 改哪一列，那一列就亮起來並出現「儲存」；按下才送出一筆 upsert（一列一筆，變更記錄才不會被拆碎）
+const sheetOpen = () => $('sheet').classList.contains('show');
+function buildSheet() {
+  if (!sheetOpen()) return;
+  const t = $('sh_t');
+  t.innerHTML = '<thead><tr><th class="c-t">時間</th><th>景點</th><th class="c-s">停留</th><th class="c-d">哪一天</th><th class="mv">移動</th><th class="c-a">　</th></tr></thead>';
+  const tb = document.createElement('tbody');
+  DATA.days.forEach(d => {
+    const head = document.createElement('tr'); head.className = 'dayrow';
+    head.innerHTML = `<td colspan="6">D${d.n} · ${d.date.slice(5).replace('-', '/')} 週${d.dow} · ${d.city || ''}<small>${d.title || ''}</small></td>`;
+    tb.appendChild(head);
+    const rows = SPOTS.filter(s => s.day === d.n);
+    rows.forEach(s => tb.appendChild(sheetRow(s, rows)));
+    const ar = document.createElement('tr'); ar.className = 'addrow';
+    ar.innerHTML = '<td colspan="6"></td>';
+    const ab = document.createElement('button'); ab.className = 'btn'; ab.textContent = '＋ 這天加一站';
+    ab.onclick = () => { closeSheet(); openEdit(null, d.n); };
+    ar.firstChild.appendChild(ab); tb.appendChild(ar);
+  });
+  t.appendChild(tb);
+  $('sh_n').textContent = SPOTS.length + ' 站 · ' + DATA.days.length + ' 天';
+}
+function sheetRow(s, sameDay) {
+  const tr = document.createElement('tr'); tr.dataset.id = s.id;
+  const dayOpts = DATA.days.map(d => `<option value="${d.n}"${d.n === s.day ? ' selected' : ''}>D${d.n} · ${d.date.slice(5).replace('-', '/')} ${d.city || ''}</option>`).join('');
+  tr.innerHTML =
+    `<td><input class="c-t" data-k="time" value="${esc(s.time || '')}" placeholder="09:30"></td>` +
+    `<td><input data-k="name" value="${esc(s.name || '')}"></td>` +
+    `<td><input class="c-s" data-k="dur" value="${esc(s.dur || '')}" placeholder="1 小時"></td>` +
+    `<td><select class="c-d" data-k="day">${dayOpts}</select></td>` +
+    `<td class="mv">${+s.move ? (s.movemode === '步行' ? '🚶' : '🚇') + s.move + '分' : '—'}</td>` +
+    `<td class="c-a"></td>`;
+  const acts = tr.lastElementChild;
+  const mk = (label, cls, fn) => { const b = document.createElement('button'); b.className = 'btn' + (cls ? ' ' + cls : ''); b.textContent = label; b.onclick = fn; acts.appendChild(b); return b; };
+  const save = mk('儲存', 'dark', async () => {
+    const payload = { id: s.id, day: +q('day').value };
+    ['name', 'time', 'dur'].forEach(k => payload[k] = q(k).value.trim());
+    if (!payload.name) { toast('名稱不能空'); return; }
+    if (payload.time && !/^\d{1,2}:\d{2}$/.test(payload.time)) { toast('時間格式 09:30'); return; }
+    save.disabled = true;
+    const r = await post({ action: 'upsert', spot: payload });
+    save.disabled = false;
+    if (r) buildSheet();                                  // 存成功後整表重畫（順序、移動時間都會變）
+  });
+  save.hidden = true;
+  const i = sameDay.indexOf(s);
+  mk('▲', '', () => sheetMove(s, sameDay, -1)).disabled = i <= 0;
+  mk('▼', '', () => sheetMove(s, sameDay, 1)).disabled = i < 0 || i >= sameDay.length - 1;
+  mk('刪', 'danger', async () => { if (!confirmInline('刪除「' + s.name + '」？（可撤銷）')) return; if (await post({ action: 'delete', id: s.id })) buildSheet(); });
+  const q = (k) => tr.querySelector('[data-k="' + k + '"]');
+  tr.querySelectorAll('input,select').forEach(el => el.oninput = el.onchange = () => { tr.classList.add('dirty'); save.hidden = false; });
+  tr.querySelectorAll('input').forEach(el => el.onkeydown = (e) => { if (e.key === 'Enter') save.click(); });
+  return tr;
+}
+async function sheetMove(s, sameDay, dir) {
+  const ids = sameDay.map(x => x.id); const i = ids.indexOf(s.id), j = i + dir;
+  if (i < 0 || j < 0 || j >= ids.length) return;
+  [ids[i], ids[j]] = [ids[j], ids[i]];
+  if (await post({ action: 'reorder', day: s.day, ids })) buildSheet();
+}
+function esc(v) { return String(v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+function closeSheet() { $('sheet').classList.remove('show'); document.body.classList.remove('sheeting'); }
+$('sheetBtn').onclick = () => { $('sheet').classList.add('show'); document.body.classList.add('sheeting'); buildSheet(); };
+$('sh_close').onclick = closeSheet;
 </script>
 </body>
 </html>
