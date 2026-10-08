@@ -9,11 +9,19 @@ const TRIP = {
   {leg:'回程',date:'2026-11-01',dow:'日',no:'CX805',from:'YYZ',to:'HKG',dep:'14:20',arr:'19:05+1',ac:'A350-1000',note:'國際線提早 3h → 11:20 前到 T3'},
   {leg:'回程',date:'2026-11-02',dow:'一',no:'CX408',from:'HKG',to:'TPE',dep:'22:55',arr:'00:35+1',ac:'A330-300',note:'11/3 凌晨抵桃園'},
  ],
- // 城際段：目前都「未訂」，等阿桑決定飛或火車
+ // 已訂費用（阿桑 2026-10-08 提供；幣別 TWD）。境內段與住宿，國際線 F9R9MP 票價不在內
+ bookings:[
+  {type:'flight',date:'2026-10-24',title:'多倫多 YYZ → 魁北克 YQB',price:5913,no:'AC1950',dep:'08:00',arr:'09:32',dur:'1h32',note:'加拿大航空（Air Canada Jazz 實際承運），直飛'},
+  {type:'stay',date:'2026-10-24',end:'2026-10-26',title:'魁北克住宿',price:3571},
+  {type:'rail',date:'2026-10-26',title:'魁北克 Gare du Palais → 蒙特婁 火車',price:1742,no:'VIA #39',dep:'14:57',arr:'18:11',dur:'3h14',note:'Economy'},
+  {type:'stay',date:'2026-10-26',end:'2026-10-29',title:'蒙特婁住宿',price:4675},
+  {type:'flight',date:'2026-10-29',title:'蒙特婁 YUL → 多倫多 YYZ',price:3770,no:'AC401',dep:'07:10',arr:'08:46',dur:'1h36',note:'加拿大航空，直飛'},
+ ],
+ // 城際段
  legs:[
-  {date:'2026-10-24',from:'Toronto',to:'Québec',mode:null,status:'待選',note:'飛 1h40（AC/Porter 直飛，或經 YUL）或 VIA 經蒙特婁轉 9–11h'},
-  {date:'2026-10-26',from:'Québec',to:'Montréal',mode:'rail',status:'待選班次',note:'大姐指定火車：Gare du Palais → Gare Centrale 約 3h10'},
-  {date:'2026-10-30',from:'Montréal',to:'Toronto',mode:null,status:'待選',note:'VIA 5h10–5h30 或 ✈ 1h20'},
+  {date:'2026-10-24',from:'Toronto',to:'Québec',mode:'flight',status:'已訂',note:'飛 1h40（AC/Porter 直飛，或經 YUL）或 VIA 經蒙特婁轉 9–11h'},
+  {date:'2026-10-26',from:'Québec',to:'Montréal',mode:'rail',status:'已訂',note:'大姐指定火車：Gare du Palais → Gare Centrale 約 3h10'},
+  {date:'2026-10-29',from:'Montréal',to:'Toronto',mode:'flight',status:'已訂',note:'VIA 5h10–5h30 或 ✈ 1h20'},
  ],
  // 天數結構照大姐 2026-09-03 在群組給的安排：10/23 多倫多、10/24–26 魁北克、10/27–29 蒙特婁、10/30–11/1 多倫多
  // （她寫 11/2，但 CX805 是 11/1 14:20 起飛，最後一天以機票為準）

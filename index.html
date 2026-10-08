@@ -284,7 +284,14 @@ function buildFlight() {
   Object.keys(AIRPORTS).forEach(k => { const a = AIRPORTS[k]; const el = document.createElement('div'); el.className = 'flightlabel';
     const times = fl.filter(f => f.from === k || f.to === k).map(f => (f.from === k ? '出 ' + f.dep : '抵 ' + f.arr) + ' ' + f.date.slice(5).replace('-', '/')).join(' · ');
     el.innerHTML = `<b>${k}</b> ${a.name}<small>${times}</small>`; flightMarkers.push(new maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, -8] }).setLngLat([a.lng, a.lat])); });
-  $('flegs').innerHTML = fl.map(f => `<div class="leg"><div class="k">${f.leg}<br>${f.date.slice(5).replace('-', '/')} 週${f.dow}</div><div><b>${f.no}</b> ${f.from} ${f.dep} → ${f.to} ${f.arr}${f.ac ? ' · ' + f.ac : ''}<small>${f.note || ''}</small></div></div>`).join('');
+  $('flegs').innerHTML = fl.map(f => `<div class="leg"><div class="k">${f.leg}<br>${f.date.slice(5).replace('-', '/')} 週${f.dow}</div><div><b>${f.no}</b> ${f.from} ${f.dep} → ${f.to} ${f.arr}${f.ac ? ' · ' + f.ac : ''}<small>${f.note || ''}</small></div></div>`).join('') + bookingsHtml();
+}
+function bookingsHtml() {
+  const bk = (DATA && DATA.bookings && DATA.bookings.length ? DATA.bookings : TRIP.bookings) || [];
+  if (!bk.length) return '';
+  const icon = { flight: '✈', rail: '🚆', stay: '🛏' }, md = d => d.slice(5).replace('-', '/'), n = v => v.toLocaleString('en-US');
+  const rows = bk.map(b => `<div class="leg"><div class="k">${md(b.date)}${b.end ? '–' + md(b.end) : ''}</div><div>${icon[b.type] || ''} ${b.title}<small>${b.no ? `${b.no} · ${b.dep} → ${b.arr}（${b.dur}）${b.note ? ' · ' + b.note : ''}<br>` : ''}TWD ${n(b.price)}</small></div></div>`).join('');
+  return `<div class="leg"><div class="k">已訂</div><div><b>境內交通＋住宿 TWD ${n(bk.reduce((a, b) => a + b.price, 0))}</b></div></div>` + rows;
 }
 function setFlight(on) {
   flightOn = on; buildFlight(); if (!map.getSource('flights')) return;
