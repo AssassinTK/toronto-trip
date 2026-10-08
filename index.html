@@ -225,14 +225,16 @@ async function fetchGas(params, opts) {
   finally { clearTimeout(t); }
 }
 async function loadData(first) {
-  let d = null, src = '';
+  let d = null, src = '', shownAt = null;
+  if (first) { try { const c = JSON.parse(localStorage.getItem('tripData')); if (c && c.days) { DATA = normalize(c); shownAt = c.updatedAt || ''; $('sync').textContent = '更新中…'; render(true); first = false; } } catch (e) { } }
   if (HAS_GAS) { try { d = await fetchGas('action=data'); if (!d.ok) d = null; else { src = 'gas'; localStorage.setItem('tripData', JSON.stringify(d)); } } catch (e) { } }
   if (!d) { try { d = JSON.parse(localStorage.getItem('tripData')); if (d) src = 'cache'; } catch (e) { } }
   if (!d) { d = JSON.parse(JSON.stringify(TRIP)); src = 'seed'; }
-  DATA = normalize(d);
+  const same = shownAt !== null && src !== 'seed' && (d.updatedAt || '') === shownAt;
+  if (!same) DATA = normalize(d);
   const s = $('sync'); s.classList.toggle('off', src !== 'gas');
   s.textContent = src === 'gas' ? '已同步 ' + (DATA.updatedAt || '').slice(5, 16) : src === 'cache' ? '離線 · 顯示上次快取' : HAS_GAS ? '連不上後端 · 顯示內建版' : '內建版（未接後端）';
-  render(first);
+  if (!same) render(first);
 }
 setInterval(async () => { if (!HAS_GAS) return; try { const p = await fetchGas('action=ping', { timeout: 8000 }); if (p.ok && p.updatedAt && p.updatedAt !== DATA.updatedAt) loadData(false); } catch (e) { } }, 45000);
 
